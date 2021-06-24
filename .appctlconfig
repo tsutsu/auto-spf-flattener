@@ -1,0 +1,10 @@
+---
+apiVersion: appctl.gke.io/v1beta1
+format: KustomizeFormat
+kind: Config
+creationTimestamp: null
+
+application_name: django-auth
+app_repo_url: https://github.com/tsutsu/auto-spf-flattener
+config_path: .appctl/config
+delivery_path: .appctl/delivery
