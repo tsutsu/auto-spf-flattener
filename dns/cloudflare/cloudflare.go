@@ -52,7 +52,7 @@ type CloudflareAPIClient struct {
 }
 
 func NewCloudflareAPIClient(zoneName string) *CloudflareAPIClient {
-	api, newErr := cf.New(os.Getenv("CF_API_KEY"), os.Getenv("CF_API_EMAIL"))
+	api, newErr := cf.NewWithAPIToken(os.Getenv("CF_API_TOKEN"))
 	if newErr != nil {
 		panic(newErr)
 	}
