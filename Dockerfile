@@ -17,6 +17,7 @@ RUN go build -ldflags '-s -w' -v .
 FROM scratch
 WORKDIR /
 
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /build/auto-spf-flattener /auto-spf-flattener
 
 ENTRYPOINT ["/auto-spf-flattener"]
