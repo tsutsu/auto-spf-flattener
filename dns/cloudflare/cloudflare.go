@@ -2,6 +2,7 @@ package cloudflare
 
 import (
 	"errors"
+	"context"
 	cf "github.com/cloudflare/cloudflare-go"
 	"os"
 	"strings"
@@ -10,11 +11,11 @@ import (
 // Allows me to mock the underlying struct in tests
 // cf.API implements this interface
 type CloudflareAPI interface {
-	CreateDNSRecord(string, cf.DNSRecord) (*cf.DNSRecordResponse, error)
-	UpdateDNSRecord(string, string, cf.DNSRecord) error
-	DeleteDNSRecord(string, string) error
-	DNSRecords(string, cf.DNSRecord) ([]cf.DNSRecord, error)
-	DNSRecord(string, string) (cf.DNSRecord, error)
+	CreateDNSRecord(context.Context, string, cf.DNSRecord) (*cf.DNSRecordResponse, error)
+	UpdateDNSRecord(context.Context, string, string, cf.DNSRecord) error
+	DeleteDNSRecord(context.Context, string, string) error
+	DNSRecords(context.Context, string, cf.DNSRecord) ([]cf.DNSRecord, error)
+	DNSRecord(context.Context, string, string) (cf.DNSRecord, error)
 }
 
 // implements CloudflareAPI while wrapping the actual CF API object
@@ -55,7 +56,7 @@ func NewCloudflareAPIClient(zoneName string) *CloudflareAPIClient {
 	if newErr != nil {
 		panic(newErr)
 	}
-	zones, zonesErr := api.ListZones(zoneName)
+	zones, zonesErr := api.ListZones(context.Background(), zoneName)
 	if zonesErr != nil {
 		panic(zonesErr)
 	}
@@ -74,7 +75,7 @@ func (c *CloudflareAPIClient) FilterTXTRecords(name, filter string) ([]string, e
 		Type: "TXT",
 		Name: name,
 	}
-	records, err := c.Api.DNSRecords(c.ZoneID, rr)
+	records, err := c.Api.DNSRecords(context.Background(), c.ZoneID, rr)
 	if err != nil {
 		return []string{}, err
 	}
@@ -88,7 +89,7 @@ func (c *CloudflareAPIClient) FilterTXTRecords(name, filter string) ([]string, e
 }
 
 func (c *CloudflareAPIClient) GetTXTRecordContent(id string) (string, error) {
-	if record, err := c.Api.DNSRecord(c.ZoneID, id); err != nil {
+	if record, err := c.Api.DNSRecord(context.Background(), c.ZoneID, id); err != nil {
 		return "", err
 	} else {
 		return record.Content, nil
@@ -101,12 +102,16 @@ func (c *CloudflareAPIClient) WriteTXTRecord(name, txt string) (string, error) {
 		Name:    name,
 		Content: txt,
 	}
-	response, err := c.Api.CreateDNSRecord(c.ZoneID, rr)
+	response, err := c.Api.CreateDNSRecord(context.Background(), c.ZoneID, rr)
 	if err != nil {
 		return "", err
 	}
 	if !response.Success {
-		return "", errors.New(strings.Join(response.Errors, " -- "))
+		errorStrs := make([]string, 0, len(response.Errors))
+		for i, err := range response.Errors {
+			errorStrs[i] = err.Message
+		}
+		return "", errors.New(strings.Join(errorStrs, " -- "))
 	}
 	id := response.Result.ID
 	return id, err
@@ -119,7 +124,7 @@ func (c *CloudflareAPIClient) UpdateTXTRecord(id, name, txt string) (string, err
 		Name:    name,
 		Content: txt,
 	}
-	err := c.Api.UpdateDNSRecord(c.ZoneID, id, rr)
+	err := c.Api.UpdateDNSRecord(context.Background(), c.ZoneID, id, rr)
 	if err != nil {
 		return "", err
 	}
@@ -127,5 +132,5 @@ func (c *CloudflareAPIClient) UpdateTXTRecord(id, name, txt string) (string, err
 }
 
 func (c *CloudflareAPIClient) DeleteTXTRecord(id string) error {
-	return c.Api.DeleteDNSRecord(c.ZoneID, id)
+	return c.Api.DeleteDNSRecord(context.Background(), c.ZoneID, id)
 }
